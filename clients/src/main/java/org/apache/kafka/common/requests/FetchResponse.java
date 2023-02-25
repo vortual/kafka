@@ -420,6 +420,7 @@ public class FetchResponse<T extends BaseRecords> extends AbstractResponse {
     }
 
     @Override
+    // vortual: 零拷贝相关代码-3
     protected Send toSend(String dest, ResponseHeader responseHeader, short apiVersion) {
         Struct responseHeaderStruct = responseHeader.toStruct();
         Struct responseBodyStruct = toStruct(apiVersion);
@@ -432,6 +433,7 @@ public class FetchResponse<T extends BaseRecords> extends AbstractResponse {
 
         Queue<Send> sends = new ArrayDeque<>();
         sends.add(new ByteBufferSend(dest, buffer));
+        // vortual: 零拷贝相关代码-4
         addResponseData(responseBodyStruct, throttleTimeMs, dest, sends);
         return new MultiRecordsSend(dest, sends);
     }
@@ -490,6 +492,7 @@ public class FetchResponse<T extends BaseRecords> extends AbstractResponse {
         }
 
         for (Object topicData : allTopicData)
+            // vortual: 零拷贝相关代码-5
             addTopicData(dest, sends, (Struct) topicData);
     }
 
@@ -505,6 +508,7 @@ public class FetchResponse<T extends BaseRecords> extends AbstractResponse {
         sends.add(new ByteBufferSend(dest, buffer));
 
         for (Object partitionData : allPartitionData)
+            // vortual: 零拷贝相关代码-6
             addPartitionData(dest, sends, (Struct) partitionData);
     }
 
@@ -520,6 +524,7 @@ public class FetchResponse<T extends BaseRecords> extends AbstractResponse {
         sends.add(new ByteBufferSend(dest, buffer));
 
         // finally the send for the record set itself
+        // vortual: 零拷贝相关代码-7
         sends.add(records.toSend(dest));
     }
 

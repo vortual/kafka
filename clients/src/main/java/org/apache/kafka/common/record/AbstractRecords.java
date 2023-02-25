@@ -63,6 +63,7 @@ public abstract class AbstractRecords implements Records {
 
     @Override
     public RecordsSend toSend(String destination) {
+        // vortual: 零拷贝相关代码-8
         return new DefaultRecordsSend(destination, this);
     }
 

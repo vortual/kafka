@@ -371,7 +371,9 @@ public class KafkaChannel implements AutoCloseable {
     public void setSend(Send send) {
         if (this.send != null)
             throw new IllegalStateException("Attempt to begin a send operation with prior send operation still in progress, connection id is " + id);
+        // vortual: 等下调用 org.apache.kafka.common.network.KafkaChannel.write 的时候会拿到这个 send 对象，就是要发送的数据对象
         this.send = send;
+        // vortual: 读取日志数据-21
         this.transportLayer.addInterestOps(SelectionKey.OP_WRITE);
     }
 
@@ -382,6 +384,7 @@ public class KafkaChannel implements AutoCloseable {
             receive = new NetworkReceive(maxReceiveSize, id, memoryPool);
         }
 
+        // vortual: 读取数据
         receive(receive);
         if (receive.complete()) {
             receive.payload().rewind();
@@ -396,6 +399,7 @@ public class KafkaChannel implements AutoCloseable {
 
     public Send write() throws IOException {
         Send result = null;
+        // vortual: 读取日志数据-23
         if (send != null && send(send)) {
             result = send;
             send = null;
@@ -424,11 +428,18 @@ public class KafkaChannel implements AutoCloseable {
         return receive.readFrom(transportLayer);
     }
 
+    // vortual: 读取日志数据-24
     private boolean send(Send send) throws IOException {
         midWrite = true;
         send.writeTo(transportLayer);
         if (send.completed()) {
             midWrite = false;
+            // vortual: 移除 OP_WRITE
+            /**
+             * 写操作的就绪条件为底层缓冲区有空闲空间，而写缓冲区绝大部分时间都是有空闲空间的，
+             * 所以当你注册写事件后，写操作一直是就绪的，然后就会开始处理, 处理线程全占用整个CPU资源。可能一直空转
+             * 所以，只有当你确实有数据要写时再注册写操作，并在写完以后马上取消注册。
+             */
             transportLayer.removeInterestOps(SelectionKey.OP_WRITE);
         }
         return send.completed();
@@ -462,12 +473,12 @@ public class KafkaChannel implements AutoCloseable {
     public String toString() {
         return super.toString() + " id=" + id;
     }
-    
+
     /**
      * Return the number of times this instance has successfully authenticated. This
      * value can only exceed 1 when re-authentication is enabled and it has
      * succeeded at least once.
-     * 
+     *
      * @return the number of times this instance has successfully authenticated
      */
     public int successfulAuthentications() {
@@ -479,7 +490,7 @@ public class KafkaChannel implements AutoCloseable {
      * 1 second has passed since the prior re-authentication (if any) started then
      * begin the process of re-authenticating the connection and return true,
      * otherwise return false
-     * 
+     *
      * @param saslHandshakeNetworkReceive
      *            the mandatory {@link NetworkReceive} containing the
      *            {@code SaslHandshakeRequest} that has been received on the server
@@ -489,7 +500,7 @@ public class KafkaChannel implements AutoCloseable {
      *            nanoseconds as per {@code System.nanoTime()} and is therefore only
      *            useful when compared to such a value -- it's absolute value is
      *            meaningless.
-     * 
+     *
      * @return true if this is a server-side connection that has an expiration time
      *         and at least 1 second has passed since the prior re-authentication
      *         (if any) started to indicate that the re-authentication process has
@@ -540,13 +551,13 @@ public class KafkaChannel implements AutoCloseable {
      * in-progress write, and there is a session expiration time defined that has
      * past then begin the process of re-authenticating the connection and return
      * true, otherwise return false
-     * 
+     *
      * @param nowNanosSupplier
      *            {@code Supplier} of the current time. The value must be in
      *            nanoseconds as per {@code System.nanoTime()} and is therefore only
      *            useful when compared to such a value -- it's absolute value is
      *            meaningless.
-     * 
+     *
      * @return true if this is a client-side connection that is not muted, there is
      *         no in-progress write, and there is a session expiration time defined
      *         that has past to indicate that the re-authentication process has
@@ -578,14 +589,14 @@ public class KafkaChannel implements AutoCloseable {
         receive = null;
         return true;
     }
-    
+
     /**
      * Return the number of milliseconds that elapsed while re-authenticating this
      * session from the perspective of this instance, if applicable, otherwise null.
      * The server-side perspective will yield a lower value than the client-side
      * perspective of the same re-authentication because the client-side observes an
      * additional network round-trip.
-     * 
+     *
      * @return the number of milliseconds that elapsed while re-authenticating this
      *         session from the perspective of this instance, if applicable,
      *         otherwise null
@@ -597,7 +608,7 @@ public class KafkaChannel implements AutoCloseable {
     /**
      * Return true if this is a server-side channel and the given time is past the
      * session expiration time, if any, otherwise false
-     * 
+     *
      * @param nowNanos
      *            the current time in nanoseconds as per {@code System.nanoTime()}
      * @return true if this is a server-side channel and the given time is past the
@@ -607,7 +618,7 @@ public class KafkaChannel implements AutoCloseable {
         Long serverSessionExpirationTimeNanos = authenticator.serverSessionExpirationTimeNanos();
         return serverSessionExpirationTimeNanos != null && nowNanos - serverSessionExpirationTimeNanos > 0;
     }
-    
+
     /**
      * Return the (always non-null but possibly empty) client-side
      * {@link NetworkReceive} responses that arrived during re-authentication that
@@ -615,7 +626,7 @@ public class KafkaChannel implements AutoCloseable {
      * prior to the beginning of re-authentication; the requests were made when the
      * channel was successfully authenticated, and the responses arrived during the
      * re-authentication process.
-     * 
+     *
      * @return the (always non-null but possibly empty) client-side
      *         {@link NetworkReceive} responses that arrived during
      *         re-authentication that are unrelated to re-authentication, if any
@@ -623,11 +634,11 @@ public class KafkaChannel implements AutoCloseable {
     public List<NetworkReceive> getAndClearResponsesReceivedDuringReauthentication() {
         return authenticator.getAndClearResponsesReceivedDuringReauthentication();
     }
-    
+
     /**
      * Return true if this is a server-side channel and the connected client has
      * indicated that it supports re-authentication, otherwise false
-     * 
+     *
      * @return true if this is a server-side channel and the connected client has
      *         indicated that it supports re-authentication, otherwise false
      */

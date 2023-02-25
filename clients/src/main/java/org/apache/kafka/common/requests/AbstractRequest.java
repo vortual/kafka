@@ -144,6 +144,7 @@ public abstract class AbstractRequest implements AbstractRequestResponse {
     public static AbstractRequest parseRequest(ApiKeys apiKey, short apiVersion, Struct struct) {
         switch (apiKey) {
             case PRODUCE:
+                // vortual: 解析成 ProduceRequest 对象
                 return new ProduceRequest(struct, apiVersion);
             case FETCH:
                 return new FetchRequest(struct, apiVersion);

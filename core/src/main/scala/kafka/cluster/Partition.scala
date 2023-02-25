@@ -938,6 +938,7 @@ class Partition(val topicPartition: TopicPartition,
     }
   }
 
+  // vortual: 写数据到 leader
   def appendRecordsToLeader(records: MemoryRecords, isFromClient: Boolean, requiredAcks: Int = 0): LogAppendInfo = {
     val (info, leaderHWIncremented) = inReadLock(leaderIsrUpdateLock) {
       leaderLogIfLocal match {
@@ -974,6 +975,7 @@ class Partition(val topicPartition: TopicPartition,
     info
   }
 
+  // vortual: 读取日志数据-6
   def readRecords(fetchOffset: Long,
                   currentLeaderEpoch: Optional[Integer],
                   maxBytes: Int,

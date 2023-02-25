@@ -278,6 +278,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
         long position = start + offset;
         int count = Math.min(length, oldSize);
         final long bytesTransferred;
+        // vortual: 读取日志数据-27
         if (destChannel instanceof TransportLayer) {
             TransportLayer tl = (TransportLayer) destChannel;
             bytesTransferred = tl.transferFrom(channel, position, count);

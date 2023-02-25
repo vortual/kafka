@@ -456,6 +456,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Handle a produce request
+   * vortual: 处理 producer 发过来的数据
    */
   def handleProduceRequest(request: RequestChannel.Request): Unit = {
     val produceRequest = request.body[ProduceRequest]
@@ -567,6 +568,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       val internalTopicsAllowed = request.header.clientId == AdminUtils.AdminClientId
 
       // call the replica manager to append messages to the replicas
+      // vortual: 往 leader 写数据，同时同步给 follower
       replicaManager.appendRecords(
         timeout = produceRequest.timeout.toLong,
         requiredAcks = produceRequest.acks,
@@ -584,6 +586,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Handle a fetch request
+   * vortual: 读取日志数据-1
    */
   def handleFetchRequest(request: RequestChannel.Request): Unit = {
     val versionId = request.header.apiVersion
@@ -701,6 +704,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     }
 
     // the callback for process a fetch response, invoked before throttling
+    // vortual: 读取日志数据-11 返回请求数据
     def processResponseCallback(responsePartitionData: Seq[(TopicPartition, FetchPartitionData)]): Unit = {
       val partitions = new util.LinkedHashMap[TopicPartition, FetchResponse.PartitionData[Records]]
       responsePartitionData.foreach { case (tp, data) =>
@@ -718,6 +722,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
       var unconvertedFetchResponse: FetchResponse[Records] = null
 
+      // vortual: 读取日志数据-13
       def createResponse(throttleTimeMs: Int): FetchResponse[BaseRecords] = {
         // Down-convert messages for each partition if required
         val convertedData = new util.LinkedHashMap[TopicPartition, FetchResponse.PartitionData[BaseRecords]]
@@ -788,6 +793,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         }
 
         // Send the response immediately.
+        // vortual: 读取日志数据-12
         sendResponse(request, Some(createResponse(maxThrottleTimeMs)), Some(updateConversionStats))
       }
     }
@@ -796,6 +802,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       processResponseCallback(Seq.empty)
     else {
       // call the replica manager to fetch messages from the local replica
+      // vortual: 读取日志数据-2
       replicaManager.fetchMessages(
         fetchRequest.maxWait.toLong,
         fetchRequest.replicaId,
@@ -2889,6 +2896,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
     val response = responseOpt match {
       case Some(response) =>
+        // vortual: 零拷贝相关代码-1
         val responseSend = request.context.buildResponse(response)
         val responseString =
           if (RequestChannel.isRequestLoggingEnabled) Some(response.toString(request.context.apiVersion))
@@ -2897,6 +2905,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       case None =>
         new RequestChannel.NoOpResponse(request)
     }
+    // vortual: 读取日志数据-14
     sendResponse(response)
   }
 

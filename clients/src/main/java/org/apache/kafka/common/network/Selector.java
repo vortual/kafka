@@ -384,6 +384,7 @@ public class Selector implements Selectable, AutoCloseable {
      * Queue the given request for sending in the subsequent {@link #poll(long)} calls
      * @param send The request to send
      */
+    // vortual: 读取日志数据-19
     public void send(Send send) {
         String connectionId = send.destination();
         KafkaChannel channel = openOrClosingChannelOrFail(connectionId);
@@ -392,6 +393,7 @@ public class Selector implements Selectable, AutoCloseable {
             this.failedSends.add(connectionId);
         } else {
             try {
+                // vortual: 读取日志数据-20
                 channel.setSend(send);
             } catch (Exception e) {
                 // update the state for consistency, the channel will be discarded after `close`
@@ -569,6 +571,7 @@ public class Selector implements Selectable, AutoCloseable {
                     responsesReceivedDuringReauthentication.forEach(receive -> addToStagedReceives(channel, receive));
                 }
 
+                // vortual: 读取数据
                 attemptRead(key, channel);
 
                 if (channel.hasBytesBuffered()) {
@@ -586,6 +589,8 @@ public class Selector implements Selectable, AutoCloseable {
                     () -> channelStartTimeNanos != 0 ? channelStartTimeNanos : currentTimeNanos)) {
                     Send send;
                     try {
+                        // vortual: 发送 response 数据的地方
+                        // vortual: 读取日志数据-22
                         send = channel.write();
                     } catch (Exception e) {
                         sendFailed = true;
@@ -648,6 +653,7 @@ public class Selector implements Selectable, AutoCloseable {
         if (channel.ready() && (key.isReadable() || channel.hasBytesBuffered()) && !hasStagedReceive(channel)
             && !explicitlyMutedChannels.contains(channel)) {
             NetworkReceive networkReceive;
+            // vortual: 读取数据
             while ((networkReceive = channel.read()) != null) {
                 madeReadProgressLastPoll = true;
                 addToStagedReceives(channel, networkReceive);

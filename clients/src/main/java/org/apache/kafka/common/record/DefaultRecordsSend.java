@@ -30,6 +30,9 @@ public class DefaultRecordsSend extends RecordsSend<Records> {
 
     @Override
     protected long writeTo(GatheringByteChannel channel, long previouslyWritten, int remaining) throws IOException {
+        // vortual: 真正发送 response 数据的地方
+        // vortual: 读取日志数据-26
+        // vortual: 零拷贝相关代码-11
         return records().writeTo(channel, previouslyWritten, remaining);
     }
 }

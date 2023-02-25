@@ -755,6 +755,7 @@ public class Sender implements Runnable {
 
     /**
      * Create a produce request from the given record batches
+     * vortual: 生产者发送消息
      */
     private void sendProduceRequest(long now, int destination, short acks, int timeout, List<ProducerBatch> batches) {
         if (batches.isEmpty())

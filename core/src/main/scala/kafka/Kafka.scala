@@ -5,7 +5,7 @@
  * The ASF licenses this file to You under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -62,6 +62,7 @@ object Kafka extends Logging {
     props
   }
 
+  // vortual: kafka 服务端启动入口类
   def main(args: Array[String]): Unit = {
     try {
       val serverProps = getPropsFromArgs(args)
@@ -80,7 +81,7 @@ object Kafka extends Logging {
       Runtime.getRuntime().addShutdownHook(new Thread("kafka-shutdown-hook") {
         override def run(): Unit = kafkaServerStartable.shutdown()
       })
-
+      // vortual: 启动各种组件
       kafkaServerStartable.startup()
       kafkaServerStartable.awaitShutdown()
     }

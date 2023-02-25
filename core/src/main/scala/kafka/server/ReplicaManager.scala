@@ -513,6 +513,7 @@ class ReplicaManager(val config: KafkaConfig,
                     recordConversionStatsCallback: Map[TopicPartition, RecordConversionStats] => Unit = _ => ()): Unit = {
     if (isValidRequiredAcks(requiredAcks)) {
       val sTime = time.milliseconds
+      // vortual: 写数据到日志文件
       val localProduceResults = appendToLocalLog(internalTopicsAllowed = internalTopicsAllowed,
         isFromClient = isFromClient, entriesPerPartition, requiredAcks)
       debug("Produce to local log in %d ms".format(time.milliseconds - sTime))
@@ -802,6 +803,7 @@ class ReplicaManager(val config: KafkaConfig,
       } else {
         try {
           val partition = getPartitionOrException(topicPartition, expectLeader = true)
+          // vortual: appendRecordsToLeader
           val info = partition.appendRecordsToLeader(records, isFromClient, requiredAcks)
           val numAppendedMessages = info.numMessages
 
@@ -895,6 +897,7 @@ class ReplicaManager(val config: KafkaConfig,
       else result
     }
 
+    // vortual: 读取日志数据-3
     val logReadResults = readFromLog()
 
     // check if this fetch request can be satisfied right away
@@ -922,6 +925,7 @@ class ReplicaManager(val config: KafkaConfig,
         tp -> FetchPartitionData(result.error, result.highWatermark, result.leaderLogStartOffset, result.info.records,
           result.lastStableOffset, result.info.abortedTransactions, result.preferredReadReplica)
       }
+      // vortual: 读取日志数据-10
       responseCallback(fetchPartitionData)
     } else {
       // construct the fetch results from the read results
@@ -949,6 +953,7 @@ class ReplicaManager(val config: KafkaConfig,
 
   /**
    * Read from multiple topic partitions at the given offset up to maxSize bytes
+   * vortual: 读取日志数据-4
    */
   def readFromLocalLog(replicaId: Int,
                        fetchOnlyFromLeader: Boolean,
@@ -1077,6 +1082,7 @@ class ReplicaManager(val config: KafkaConfig,
     val result = new mutable.ArrayBuffer[(TopicPartition, LogReadResult)]
     var minOneMessage = !hardMaxBytesLimit
     readPartitionInfo.foreach { case (tp, fetchInfo) =>
+      // vortual: 读取日志数据-5
       val readResult = read(tp, fetchInfo, limitBytes, minOneMessage)
       val recordBatchSize = readResult.info.records.sizeInBytes
       // Once we read from a non-empty partition, we stop ignoring request and partition level size limits

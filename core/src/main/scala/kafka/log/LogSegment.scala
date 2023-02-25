@@ -164,6 +164,7 @@ class LogSegment private[log] (val log: FileRecords,
       }
       // append an entry to the index (if needed)
       if (bytesSinceLastIndexEntry > indexIntervalBytes) {
+        // vortual: 写索引
         offsetIndex.append(largestOffset, physicalPosition)
         timeIndex.maybeAppend(maxTimestampSoFar, offsetOfMaxTimestampSoFar)
         bytesSinceLastIndexEntry = 0
@@ -288,6 +289,7 @@ class LogSegment private[log] (val log: FileRecords,
    *         or null if the startOffset is larger than the largest offset in this log
    */
   @threadsafe
+  // vortual: 读取日志数据-9
   def read(startOffset: Long,
            maxSize: Int,
            maxPosition: Long = size,

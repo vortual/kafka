@@ -79,6 +79,7 @@ public class SimpleMemoryPool implements MemoryPool {
             return null;
         }
 
+        // vortual: 分配堆内内存
         ByteBuffer allocated = ByteBuffer.allocate(sizeBytes);
         bufferToBeReturned(allocated);
         return allocated;

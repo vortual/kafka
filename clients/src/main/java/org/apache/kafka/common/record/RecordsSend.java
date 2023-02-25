@@ -35,6 +35,7 @@ public abstract class RecordsSend<T extends BaseRecords> implements Send {
 
     protected RecordsSend(String destination, T records, int maxBytesToWrite) {
         this.destination = destination;
+        // vortual: 零拷贝相关代码-9
         this.records = records;
         this.maxBytesToWrite = maxBytesToWrite;
         this.remaining = maxBytesToWrite;
@@ -55,6 +56,7 @@ public abstract class RecordsSend<T extends BaseRecords> implements Send {
         long written = 0;
 
         if (remaining > 0) {
+            // vortual: 读取日志数据-25
             written = writeTo(channel, size() - remaining, remaining);
             if (written < 0)
                 throw new EOFException("Wrote negative bytes to channel. This shouldn't happen.");
@@ -73,6 +75,7 @@ public abstract class RecordsSend<T extends BaseRecords> implements Send {
         return maxBytesToWrite;
     }
 
+    // vortual: 零拷贝相关代码-10
     protected T records() {
         return records;
     }

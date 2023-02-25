@@ -331,10 +331,13 @@ class RequestChannel(val queueSize: Int, val metricNamePrefix : String) extends 
       trace(message)
     }
 
+    // vortual: 获取该 response 对象对应的 processor 处理线程，放到其 responseQueue 队列里面
     val processor = processors.get(response.processor)
     // The processor may be null if it was shutdown. In this case, the connections
     // are closed, so the response is dropped.
     if (processor != null) {
+      // vortual: 将 response 对象放入到 response 队列
+      // vortual: 读取日志数据-15
       processor.enqueueResponse(response)
     }
   }

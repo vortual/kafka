@@ -77,6 +77,7 @@ public class RequestContext implements AuthorizableRequestContext {
 
     public Send buildResponse(AbstractResponse body) {
         ResponseHeader responseHeader = header.toResponseHeader();
+        // vortual: 零拷贝相关代码-2
         return body.toSend(connectionId, responseHeader, apiVersion());
     }
 

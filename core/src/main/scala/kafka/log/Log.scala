@@ -1136,6 +1136,7 @@ class Log(@volatile var dir: File,
         }
 
         // maybe roll the log if this segment is full
+        // vortual: 判断是否会滚动日志
         val segment = maybeRoll(validRecords.sizeInBytes, appendInfo)
 
         val logOffsetMetadata = LogOffsetMetadata(
@@ -1156,6 +1157,7 @@ class Log(@volatile var dir: File,
           return appendInfo
         }
 
+        // vortual: 写日志到指定的 offset
         segment.append(largestOffset = appendInfo.lastOffset,
           largestTimestamp = appendInfo.maxTimestamp,
           shallowOffsetOfMaxTimestamp = appendInfo.offsetOfMaxTimestamp,
@@ -1443,6 +1445,7 @@ class Log(@volatile var dir: File,
    * @throws OffsetOutOfRangeException If startOffset is beyond the log end offset or before the log start offset
    * @return The fetch data information including fetch starting offset metadata and messages read.
    */
+  // vortual: 读取日志数据-7
   def read(startOffset: Long,
            maxLength: Int,
            isolation: FetchIsolation,
@@ -1491,7 +1494,7 @@ class Log(@volatile var dir: File,
             segment.size
           }
         }
-
+        // vortual: 读取日志数据-8
         val fetchInfo = segment.read(startOffset, maxLength, maxPosition, minOneMessage)
         if (fetchInfo == null) {
           segmentEntry = segments.higherEntry(segmentEntry.getKey)
@@ -1823,6 +1826,7 @@ class Log(@volatile var dir: File,
     val maxTimestampInMessages = appendInfo.maxTimestamp
     val maxOffsetInMessages = appendInfo.lastOffset
 
+    // vortual: 判断是否要滚动生成新的 segment
     if (segment.shouldRoll(RollParams(config, appendInfo, messagesSize, now))) {
       debug(s"Rolling new log segment (log_size = ${segment.size}/${config.segmentSize}}, " +
         s"offset_index_size = ${segment.offsetIndex.entries}/${segment.offsetIndex.maxEntries}, " +
@@ -1911,6 +1915,7 @@ class Log(@volatile var dir: File,
           fileAlreadyExists = false,
           initFileSize = initFileSize,
           preallocate = config.preallocate)
+        // vortual: 更新跳表
         addSegment(segment)
 
         // We need to update the segment base offset and append position data of the metadata when log rolls.

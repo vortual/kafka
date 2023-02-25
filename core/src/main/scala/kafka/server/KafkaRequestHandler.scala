@@ -51,7 +51,7 @@ class KafkaRequestHandler(id: Int,
       // time_window is independent of the number of threads, each recorded idle
       // time should be discounted by # threads.
       val startSelectTime = time.nanoseconds
-
+      // vortual: 从请求队列取出请求数据进行处理
       val req = requestChannel.receiveRequest(300)
       val endTime = time.nanoseconds
       val idleTime = endTime - startSelectTime
@@ -93,6 +93,7 @@ class KafkaRequestHandler(id: Int,
 
 }
 
+// vortual: request 请求实际处理线程池
 class KafkaRequestHandlerPool(val brokerId: Int,
                               val requestChannel: RequestChannel,
                               val apis: KafkaApis,

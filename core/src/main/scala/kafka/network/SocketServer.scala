@@ -580,10 +580,13 @@ private[kafka] class Acceptor(val endPoint: EndPoint,
                       processor = synchronized {
                         // adjust the index (if necessary) and retrieve the processor atomically for
                         // correct behaviour in case the number of processors is reduced dynamically
+                        // vortual: 通过 index 每次加一来模拟轮询，每个 processor 都一直轮询
                         currentProcessorIndex = currentProcessorIndex % processors.length
                         processors(currentProcessorIndex)
                       }
                       currentProcessorIndex += 1
+                      // vortual: 一开始 retriesLeft != 0 . 调用队列的 offer 方法，请求队列可能会满了，如果队列满了. 添加失败后，轮询下一个 processor
+                      // vortual: 直到 retriesLeft == 0. 这时候就调用阻塞队列的 put 方法，阻塞在那等待队列不满
                     } while (!assignNewConnection(socketChannel, processor, retriesLeft == 0))
                   }
                 } else
@@ -720,6 +723,7 @@ private[kafka] class Processor(val id: Int,
 
   private val newConnections = new ArrayBlockingQueue[SocketChannel](connectionQueueSize)
   private val inflightResponses = mutable.Map[String, RequestChannel.Response]()
+  // vortual: 每个 Processor 线程有一个 responseQueue 响应队列
   private val responseQueue = new LinkedBlockingDeque[RequestChannel.Response]()
 
   private[kafka] val metricTags = mutable.LinkedHashMap(
@@ -783,10 +787,15 @@ private[kafka] class Processor(val id: Int,
       while (isRunning) {
         try {
           // setup any new connections that have been queued up
+          // vortual: 从 newConnections 队列里面获取建立了连接的请求. 并注册 OP_READ 事件
           configureNewConnections()
           // register any new responses for writing
+          // vortual: 从 response 队列取出来注册 OP_WRITE 事件. this.transportLayer.addInterestOps(SelectionKey.OP_WRITE)
+          // vortual: 读取日志数据-16 取出 reponse 对象进行处理
           processNewResponses()
+          // vortual: 真正发送 reponse 数据的地方
           poll()
+          // vortual: 往请求队列放入请求对象
           processCompletedReceives()
           processCompletedSends()
           processDisconnected()
@@ -825,6 +834,8 @@ private[kafka] class Processor(val id: Int,
 
   private def processNewResponses(): Unit = {
     var currentResponse: RequestChannel.Response = null
+    // vortual: 从 response 队列取数据
+    // vortual: 读取日志数据-17 从 response 队列取数据
     while ({currentResponse = dequeueResponse(); currentResponse != null}) {
       val channelId = currentResponse.request.context.connectionId
       try {
@@ -864,6 +875,7 @@ private[kafka] class Processor(val id: Int,
   }
 
   // `protected` for test usage
+  // vortual: 读取日志数据-18
   protected[network] def sendResponse(response: RequestChannel.Response, responseSend: Send): Unit = {
     val connectionId = response.request.context.connectionId
     trace(s"Socket server received response to send to $connectionId, registering for write and sending data: $response")
@@ -917,6 +929,7 @@ private[kafka] class Processor(val id: Int,
                   channel.principal, listenerName, securityProtocol)
                 val req = new RequestChannel.Request(processor = id, context = context,
                   startTimeNanos = nowNanos, memoryPool, receive.payload, requestChannel.metrics)
+                // vortual: 往请求队列放请求对象
                 requestChannel.sendRequest(req)
                 selector.mute(connectionId)
                 handleChannelMuteEvent(connectionId, ChannelMuteEvent.REQUEST_RECEIVED)
