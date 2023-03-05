@@ -256,6 +256,7 @@ public class Selector implements Selectable, AutoCloseable {
         try {
             configureSocketChannel(socketChannel, sendBufferSize, receiveBufferSize);
             boolean connected = doConnect(socketChannel, address);
+            // vortual: 注册 OP_CONNECT 事件后。真正完成连接建立的代码位置： org.apache.kafka.common.network.Selector.pollSelectionKeys
             key = registerChannel(id, socketChannel, SelectionKey.OP_CONNECT);
 
             if (connected) {
@@ -292,6 +293,11 @@ public class Selector implements Selectable, AutoCloseable {
             socket.setSendBufferSize(sendBufferSize);
         if (receiveBufferSize != Selectable.USE_DEFAULT_BUFFER_SIZE)
             socket.setReceiveBufferSize(receiveBufferSize);
+        // vortual: 这个值默认是 false，代表要开启 Nagle 算法
+        // vortual: 它会把网络中的一些小的数据包收集起来，组合成一个大的数据包
+        // vortual: 然后再发送出去。因为它认为如果网络中有大量的小的数据包在传输会造成网络拥塞
+
+        // vortual: 但是 kafka 有时候要发送的数据就是比较小，
         socket.setTcpNoDelay(true);
     }
 
@@ -504,6 +510,7 @@ public class Selector implements Selectable, AutoCloseable {
 
         // Add to completedReceives after closing expired connections to avoid removing
         // channels with completed receives until all staged receives are completed.
+        // vortual: 对响应队列的数据进行处理
         addToCompletedReceives();
     }
 
@@ -530,6 +537,7 @@ public class Selector implements Selectable, AutoCloseable {
             try {
                 /* complete any connections that have finished their handshake (either normally or immediately) */
                 if (isImmediatelyConnected || key.isConnectable()) {
+                    // vortual: 完成网络连接建立
                     if (channel.finishConnect()) {
                         this.connected.add(channel.id());
                         this.sensors.connectionCreated.record();
@@ -656,6 +664,7 @@ public class Selector implements Selectable, AutoCloseable {
             // vortual: 读取数据
             while ((networkReceive = channel.read()) != null) {
                 madeReadProgressLastPoll = true;
+                // vortual: 添加响应到响应队列. 一个 channel 对应一个响应队列。 后续处理的方法： addToCompletedReceives()
                 addToStagedReceives(channel, networkReceive);
             }
             if (channel.isMute()) {
@@ -1016,6 +1025,7 @@ public class Selector implements Selectable, AutoCloseable {
 
     private void addToCompletedReceives(KafkaChannel channel, Deque<NetworkReceive> stagedDeque) {
         NetworkReceive networkReceive = stagedDeque.poll();
+        // vortual: 把响应存放到 completedReceives 里面。等待后续处理，后续处理代码： handleCompletedReceives(responses, updatedNow);
         this.completedReceives.add(networkReceive);
         this.sensors.recordBytesReceived(channel.id(), networkReceive.size());
     }

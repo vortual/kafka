@@ -97,6 +97,8 @@ public class MetadataCache {
         return Optional.ofNullable(metadataByPartition.get(topicPartition));
     }
 
+    // vortual: 这里的 clusterInstance 是在初始化 producer 时初始化了
+    // vortual: 对应代码: this.metadata.bootstrap(addresses, time.milliseconds());
     Cluster cluster() {
         if (clusterInstance == null) {
             throw new IllegalStateException("Cached Cluster instance should not be null, but was.");

@@ -286,6 +286,7 @@ public class NetworkClient implements KafkaClient {
 
         if (connectionStates.canConnect(node.idString(), now))
             // if we are interested in sending to a node and we don't have a connection to it, initiate one
+            // vortual: 初始化连接
             initiateConnect(node, now);
 
         return false;
@@ -501,6 +502,7 @@ public class NetworkClient implements KafkaClient {
                         header.apiVersion(), clientRequest.apiKey(), request, clientRequest.correlationId(), destination);
             }
         }
+        // vortual: 把 request 对象转成 send 对象。会将 requeset 对象的数据部分封装到 body 里面
         Send send = request.toSend(destination, header);
         InFlightRequest inFlightRequest = new InFlightRequest(
                 clientRequest,
@@ -509,6 +511,7 @@ public class NetworkClient implements KafkaClient {
                 request,
                 send,
                 now);
+        // vortual: 这里存储的是还有多少没有响应的请求
         this.inFlightRequests.add(inFlightRequest);
         selector.send(send);
     }
@@ -535,6 +538,7 @@ public class NetworkClient implements KafkaClient {
             return responses;
         }
 
+        // vortual: 封装一个拉取元数据的请求
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
             this.selector.poll(Utils.min(timeout, metadataTimeout, defaultRequestTimeoutMs));
@@ -546,11 +550,13 @@ public class NetworkClient implements KafkaClient {
         long updatedNow = this.time.milliseconds();
         List<ClientResponse> responses = new ArrayList<>();
         handleCompletedSends(responses, updatedNow);
+        // vortual: 对响应数据进行处理。不是内部发起的请求的话会把响应放到 responses 列表
         handleCompletedReceives(responses, updatedNow);
         handleDisconnections(responses, updatedNow);
         handleConnections();
         handleInitiateApiVersionRequests(updatedNow);
         handleTimedOutRequests(responses, updatedNow);
+        // vortual: 遍历 responses 列表回调。举个生产者发送消息的回调代码： handleProduceResponse(response, recordsByPartition, time.milliseconds());
         completeResponses(responses);
 
         return responses;
@@ -832,7 +838,9 @@ public class NetworkClient implements KafkaClient {
     private void handleCompletedReceives(List<ClientResponse> responses, long now) {
         for (NetworkReceive receive : this.selector.completedReceives()) {
             String source = receive.source();
+            // vortual: 移除已经收到响应的请求
             InFlightRequest req = inFlightRequests.completeNext(source);
+            // vortual: 解析响应数据
             Struct responseStruct = parseStructMaybeUpdateThrottleTimeMetrics(receive.payload(), req.header,
                 throttleTimeSensor, now);
             if (log.isTraceEnabled()) {
@@ -840,14 +848,17 @@ public class NetworkClient implements KafkaClient {
                     req.header.apiKey(), req.header.correlationId(), responseStruct);
             }
             // If the received response includes a throttle delay, throttle the connection.
+            // vortual: 封装成各种 response 对象
             AbstractResponse body = AbstractResponse.
                     parseResponse(req.header.apiKey(), responseStruct, req.header.apiVersion());
             maybeThrottle(body, req.header.apiVersion(), req.destination, now);
             if (req.isInternalRequest && body instanceof MetadataResponse)
+                // vortual: 发送元数据请求后回调更新
                 metadataUpdater.handleCompletedMetadataResponse(req.header, now, (MetadataResponse) body);
             else if (req.isInternalRequest && body instanceof ApiVersionsResponse)
                 handleApiVersionsResponse(responses, req, now, (ApiVersionsResponse) body);
             else
+                // vortual: 放到响应列表
                 responses.add(req.completed(body, now));
         }
     }
@@ -1008,6 +1019,7 @@ public class NetworkClient implements KafkaClient {
 
             // Beware that the behavior of this method and the computation of timeouts for poll() are
             // highly dependent on the behavior of leastLoadedNode.
+            // vortual: 选取一个负载比较低的节点
             Node node = leastLoadedNode(now);
             if (node == null) {
                 log.debug("Give up sending metadata request since no node is available");
@@ -1068,6 +1080,7 @@ public class NetworkClient implements KafkaClient {
                 log.trace("Ignoring empty metadata response with correlation id {}.", requestHeader.correlationId());
                 this.metadata.failedUpdate(now, null);
             } else {
+                // vortual: 更新元数据信息
                 this.metadata.update(inProgressRequestVersion, response, now);
             }
 
@@ -1107,6 +1120,7 @@ public class NetworkClient implements KafkaClient {
                 this.inProgressRequestVersion = requestAndVersion.requestVersion;
                 MetadataRequest.Builder metadataRequest = requestAndVersion.requestBuilder;
                 log.debug("Sending metadata request {} to node {}", metadataRequest, node);
+                // vortual: 发送元数据拉取请求
                 sendInternalMetadataRequest(metadataRequest, nodeConnectionId, now);
                 return defaultRequestTimeoutMs;
             }
@@ -1123,6 +1137,7 @@ public class NetworkClient implements KafkaClient {
             if (connectionStates.canConnect(nodeConnectionId, now)) {
                 // We don't have a connection to this node right now, make one
                 log.debug("Initialize connection to node {} for sending metadata request", node);
+                // vortual: 跟 broker 建立连接. 同时创建每个节点对应的 socketChannel 注册到 selector 上
                 initiateConnect(node, now);
                 return reconnectBackoffMs;
             }

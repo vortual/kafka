@@ -43,6 +43,7 @@ public class SystemTime implements Time {
 
     @Override
     public void waitObject(Object obj, Supplier<Boolean> condition, long deadlineMs) throws InterruptedException {
+        // vortual: obj 是 producer metadata 对象
         synchronized (obj) {
             while (true) {
                 if (condition.get())

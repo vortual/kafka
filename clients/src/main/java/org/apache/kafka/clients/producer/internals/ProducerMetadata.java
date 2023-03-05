@@ -97,6 +97,7 @@ public class ProducerMetadata extends Metadata {
         time.waitObject(this, () -> {
             // Throw fatal exceptions, if there are any. Recoverable topic errors will be handled by the caller.
             maybeThrowFatalException();
+            // vortual: 如果更新后的版本大于之前的版本，则直接返回，否则调用 wait() 等待唤醒
             return updateVersion() > lastVersion || isClosed();
         }, deadlineMs);
 
@@ -107,6 +108,7 @@ public class ProducerMetadata extends Metadata {
     @Override
     public synchronized void update(int requestVersion, MetadataResponse response, long now) {
         super.update(requestVersion, response, now);
+        // vortual: 唤醒在等待获取元数据的线程. 也就是唤醒调用了 awaitUpdate 这个方法在等待的线程
         notifyAll();
     }
 

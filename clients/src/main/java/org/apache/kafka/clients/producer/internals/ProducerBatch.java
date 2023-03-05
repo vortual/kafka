@@ -100,9 +100,12 @@ public final class ProducerBatch {
      * @return The RecordSend corresponding to this record or null if there isn't sufficient room.
      */
     public FutureRecordMetadata tryAppend(long timestamp, byte[] key, byte[] value, Header[] headers, Callback callback, long now) {
+        // vortual: 是否这个批次还能放进去新来的数据
         if (!recordsBuilder.hasRoomFor(timestamp, key, value, headers)) {
             return null;
         } else {
+            // vortual: 将新来的数据追加到已有的这个 batch 里面. 通过流的方式追加数据
+            // vortual: 具体写的地方：org.apache.kafka.common.utils.Utils.writeTo
             Long checksum = this.recordsBuilder.append(timestamp, key, value, headers);
             this.maxRecordSize = Math.max(this.maxRecordSize, AbstractRecords.estimateSizeInBytesUpperBound(magic(),
                     recordsBuilder.compressionType(), key, value, headers));
@@ -114,6 +117,7 @@ public final class ProducerBatch {
                                                                    Time.SYSTEM);
             // we have to keep every future returned to the users in case the batch needs to be
             // split to several new batches and resent.
+            // vortual: 记录用户写的回调函数，用于响应回调
             thunks.add(new Thunk(callback, future));
             this.recordCount++;
             return future;
@@ -193,6 +197,7 @@ public final class ProducerBatch {
         }
 
         if (this.finalState.compareAndSet(null, tryFinalState)) {
+            // vortual: 回调用户写的回调函数
             completeFutureAndFireCallbacks(baseOffset, logAppendTime, exception);
             return true;
         }

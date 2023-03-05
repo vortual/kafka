@@ -85,6 +85,10 @@ public class CopyOnWriteMap<K, V> implements ConcurrentMap<K, V> {
 
     @Override
     public synchronized V put(K k, V v) {
+        // vortual: CopyOnWrite类实现了 MVCC。Copy On Write是这样一种机制。当我们读取共享数据的时候，直接读取，不需要同步。
+        // vortual: 当我们修改数据的时候，我们就把当前数据Copy一份副本，然后在这个副本 上进行修改，完成之后，再用修改后的副本，替换掉原来的数据。这种方法就叫做Copy On Write
+        // vortual: 这样做的好处在于，我们可以在并发的场景下对容器进行"读操作"而不需要"加锁"，从而达到读写分离的目的
+        // vortual: 读操作的线程可能不会立即读取到新修改的数据，因为修改操作发生在副本上。但最终修改操作会完成并更新容器，因此这是最终一致性,不是强一致性.
         Map<K, V> copy = new HashMap<K, V>(this.map);
         V prev = copy.put(k, v);
         this.map = Collections.unmodifiableMap(copy);

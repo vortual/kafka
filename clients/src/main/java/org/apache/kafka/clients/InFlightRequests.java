@@ -99,7 +99,9 @@ final class InFlightRequests {
      */
     public boolean canSendMore(String node) {
         Deque<NetworkClient.InFlightRequest> queue = requests.get(node);
+        // vortual: maxInFlightRequestsPerConnection. 控制能同时有多少个并发的请求发往一台 broker
         return queue == null || queue.isEmpty() ||
+                // vortual: 第一个数据已经发送光了且队列大小小于 maxInFlightRequestsPerConnection
                (queue.peekFirst().send.completed() && queue.size() < this.maxInFlightRequestsPerConnection);
     }
 

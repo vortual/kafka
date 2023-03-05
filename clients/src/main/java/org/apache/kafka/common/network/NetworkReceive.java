@@ -91,12 +91,14 @@ public class NetworkReceive implements Receive {
     public long readFrom(ScatteringByteChannel channel) throws IOException {
         int read = 0;
         if (size.hasRemaining()) {
+            // vortual: 默认四个字节存储一个 int，表是该消息的大小
             int bytesRead = channel.read(size);
             if (bytesRead < 0)
                 throw new EOFException();
             read += bytesRead;
             if (!size.hasRemaining()) {
                 size.rewind();
+                // vortual: 判断这条消息的大小，解决粘包拆包问题
                 int receiveSize = size.getInt();
                 if (receiveSize < 0)
                     throw new InvalidReceiveException("Invalid receive (size = " + receiveSize + ")");
@@ -109,6 +111,7 @@ public class NetworkReceive implements Receive {
             }
         }
         if (buffer == null && requestedBufferSize != -1) { //we know the size we want but havent been able to allocate it yet
+            // vortual: 默认是 org.apache.kafka.common.memory.MemoryPool.NONE。没有内存池限制
             buffer = memoryPool.tryAllocate(requestedBufferSize);
             if (buffer == null)
                 log.trace("Broker low on memory - could not allocate buffer of size {} for source {}", requestedBufferSize, source);

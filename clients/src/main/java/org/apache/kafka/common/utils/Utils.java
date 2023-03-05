@@ -977,6 +977,8 @@ public final class Utils {
      * @throws IOException For any errors writing to the output
      */
     public static void writeTo(DataOutput out, ByteBuffer buffer, int length) throws IOException {
+        // vortual: 内存池-如何往申请的内存对象里面写数据。这里的 out 是 new DataOutputStream(compressionType.wrapForOutput(this.bufferStream, magic)) 对象，是创建 MemoryRecordsBuilder 创建的
+        // this.bufferStream = new ByteBufferOutputStream(buffer) . 构造方法传递的 buffer 就是从内存池申请到的内存对象
         if (buffer.hasArray()) {
             out.write(buffer.array(), buffer.position() + buffer.arrayOffset(), length);
         } else {

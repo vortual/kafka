@@ -386,6 +386,7 @@ public class KafkaChannel implements AutoCloseable {
 
         // vortual: 读取数据
         receive(receive);
+        // vortual: 判断消息是否读取完整了
         if (receive.complete()) {
             receive.payload().rewind();
             result = receive;

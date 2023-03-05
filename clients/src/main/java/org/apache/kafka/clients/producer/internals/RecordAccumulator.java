@@ -125,6 +125,7 @@ public final class RecordAccumulator {
         this.lingerMs = lingerMs;
         this.retryBackoffMs = retryBackoffMs;
         this.deliveryTimeoutMs = deliveryTimeoutMs;
+        // vortual: 自定义了 map. 读取不加锁，适合读多写少的场景
         this.batches = new CopyOnWriteMap<>();
         this.free = bufferPool;
         this.incomplete = new IncompleteBatches();
@@ -179,9 +180,11 @@ public final class RecordAccumulator {
      * @param headers the Headers for the record
      * @param callback The user-supplied callback to execute when the request is complete
      * @param maxTimeToBlock The maximum time in milliseconds to block for buffer memory to be available
-     * @param abortOnNewBatch A boolean that indicates returning before a new batch is created and 
+     * @param abortOnNewBatch A boolean that indicates returning before a new batch is created and
      *                        running the the partitioner's onNewBatch method before trying to append again
      */
+    // vortual: append 是个高并发的操作，同时要保证线程安全. 最简单的是方法上加锁，但是性能不佳
+    // vortual: 这里使用了分段加锁. 缩小了锁的粒度: synchronized (dq) {xxx}
     public RecordAppendResult append(TopicPartition tp,
                                      long timestamp,
                                      byte[] key,
@@ -197,6 +200,7 @@ public final class RecordAccumulator {
         if (headers == null) headers = Record.EMPTY_HEADERS;
         try {
             // check if we have an in-progress batch
+            // vortual: 为每一个 topic 分区建立对应的队列
             Deque<ProducerBatch> dq = getOrCreateDeque(tp);
             synchronized (dq) {
                 if (closed)
@@ -211,10 +215,12 @@ public final class RecordAccumulator {
                 // Return a result that will cause another call to append.
                 return new RecordAppendResult(null, false, false, true);
             }
-            
+
             byte maxUsableMagic = apiVersions.maxUsableProduceMagic();
+            // vortual: 取消息跟批次大小两者的最大值
             int size = Math.max(this.batchSize, AbstractRecords.estimateSizeInBytesUpperBound(maxUsableMagic, compression, key, value, headers));
             log.trace("Allocating a new {} byte message buffer for topic {} partition {}", size, tp.topic(), tp.partition());
+            // vortual: 向内存池申请内存
             buffer = free.allocate(size, maxTimeToBlock);
             synchronized (dq) {
                 // Need to check if producer is closed again after grabbing the dequeue lock.
@@ -232,6 +238,8 @@ public final class RecordAccumulator {
                 FutureRecordMetadata future = Objects.requireNonNull(batch.tryAppend(timestamp, key, value, headers,
                         callback, time.milliseconds()));
 
+                // vortual: 把新建的批次加入到队列里面. 往队列加入 batch 之后. sender 线程会判断是否满批可以发送
+                // vortual: 对应代码位置: RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(cluster, now);
                 dq.addLast(batch);
                 incomplete.add(batch);
 
@@ -240,6 +248,7 @@ public final class RecordAccumulator {
                 return new RecordAppendResult(future, dq.size() > 1 || batch.isFull(), true, false);
             }
         } finally {
+            // vortual: 在高并发下有可能申请的资源是用不上的，用的是上一个线程创建的批次. 所以要释放申请的资源
             if (buffer != null)
                 free.deallocate(buffer);
             appendsInProgress.decrementAndGet();
@@ -286,7 +295,7 @@ public final class RecordAccumulator {
             muted.remove(tp);
             return false;
         }
-        
+
         return true;
     }
 
@@ -452,11 +461,14 @@ public final class RecordAccumulator {
      * </ul>
      * </ol>
      */
+    // vortual: 生产者-判断是否可以发送一批消息了
     public ReadyCheckResult ready(Cluster cluster, long nowMs) {
         Set<Node> readyNodes = new HashSet<>();
         long nextReadyCheckDelayMs = Long.MAX_VALUE;
         Set<String> unknownLeaderTopics = new HashSet<>();
 
+        // vortual: 根据是否有等待内存的线程来判断内存是否耗尽了
+        // vortual: 如果耗尽了说明要尽快释放内存，就不去等是否满足一批这种情况了
         boolean exhausted = this.free.queued() > 0;
         for (Map.Entry<TopicPartition, Deque<ProducerBatch>> entry : this.batches.entrySet()) {
             Deque<ProducerBatch> deque = entry.getValue();
@@ -466,6 +478,7 @@ public final class RecordAccumulator {
                 ProducerBatch batch = deque.peekFirst();
                 if (batch != null) {
                     TopicPartition part = entry.getKey();
+                    // vortual: 获取分区的 leader
                     Node leader = cluster.leaderFor(part);
                     if (leader == null) {
                         // This is a partition for which leader is not known, but messages are available to send.
@@ -475,10 +488,13 @@ public final class RecordAccumulator {
                         long waitedTimeMs = batch.waitedTimeMs(nowMs);
                         boolean backingOff = batch.attempts() > 0 && waitedTimeMs < retryBackoffMs;
                         long timeToWaitMs = backingOff ? retryBackoffMs : lingerMs;
+                        // vortual: 如果队列大于1说明肯定排在前面的批次写满了，才写第二个批次
+                        // vortual: 如果队列不大于1也有可能是刚好只有一个批次，然后这个批次刚写满
                         boolean full = deque.size() > 1 || batch.isFull();
                         boolean expired = waitedTimeMs >= timeToWaitMs;
                         boolean sendable = full || expired || exhausted || closed || flushInProgress();
                         if (sendable && !backingOff) {
+                            // vortual: 要发送数据的 leader 节点
                             readyNodes.add(leader);
                         } else {
                             long timeLeftMs = Math.max(timeToWaitMs - waitedTimeMs, 0);

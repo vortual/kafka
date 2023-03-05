@@ -332,12 +332,16 @@ public class Sender implements Runnable {
 
         long currentTimeMs = time.milliseconds();
         long pollTimeout = sendProducerData(currentTimeMs);
+        // vortual: 真正发送网络读写的地方. 拉取元数据也在这个地方. sender 线程的 run 方法 whlie 循环会不停的调用这里进行数据发送
         client.poll(pollTimeout, currentTimeMs);
     }
 
     private long sendProducerData(long now) {
+        // vortual: 获取集群元数据信息
         Cluster cluster = metadata.fetch();
         // get the list of partitions with data ready to send
+        // vortual: 判断是否有哪个分区满足发送数据的条件了
+        // vortual: 会得到要发送数据的 leader 节点 : result.readyNodes
         RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(cluster, now);
 
         // if there are any partitions whose leaders are not known yet, force metadata update
@@ -358,6 +362,7 @@ public class Sender implements Runnable {
         long notReadyTimeout = Long.MAX_VALUE;
         while (iter.hasNext()) {
             Node node = iter.next();
+            // vortual: 判断要发送数据的 leader 节点是否网络都建立好了
             if (!this.client.ready(node, now)) {
                 iter.remove();
                 notReadyTimeout = Math.min(notReadyTimeout, this.client.pollDelayMs(node, now));
@@ -365,6 +370,9 @@ public class Sender implements Runnable {
         }
 
         // create produce requests
+        // vortual: 合并请求
+        // vortual: 分区数大于 broker 数时, 一个 broker 上面会有多个分区 leader.
+        // vortual: 当要发送数据的分区是对应一个 broker 时, 会按 broker 分组进行合并，不用建立多个请求
         Map<Integer, List<ProducerBatch>> batches = this.accumulator.drain(cluster, result.readyNodes, this.maxRequestSize, now);
         addToInflightBatches(batches);
         if (guaranteeMessageOrder) {
@@ -377,6 +385,7 @@ public class Sender implements Runnable {
 
         accumulator.resetNextBatchExpiryTime();
         List<ProducerBatch> expiredInflightBatches = getExpiredInflightBatches(now);
+        // vortual: 对超时的批次进行处理
         List<ProducerBatch> expiredBatches = this.accumulator.expiredBatches(now);
         expiredBatches.addAll(expiredInflightBatches);
 
@@ -412,6 +421,7 @@ public class Sender implements Runnable {
             // otherwise the select time will be the time difference between now and the metadata expiry time;
             pollTimeout = 0;
         }
+        // vortual: 发送数据
         sendProduceRequests(batches, now);
         return pollTimeout;
     }
@@ -575,6 +585,7 @@ public class Sender implements Runnable {
         long receivedTimeMs = response.receivedTimeMs();
         int correlationId = requestHeader.correlationId();
         if (response.wasDisconnected()) {
+            // vortual: 如果 broker 连不上了
             log.trace("Cancelled request with header {} due to node {} being disconnected",
                 requestHeader, response.destination());
             for (ProducerBatch batch : batches.values())
@@ -633,6 +644,7 @@ public class Sender implements Runnable {
             maybeRemoveAndDeallocateBatch(batch);
             this.sensors.recordBatchSplit();
         } else if (error != Errors.NONE) {
+            // vortual: 发送失败后重试
             if (canRetry(batch, response, now)) {
                 log.warn(
                     "Got error produce response with correlation id {} on topic-partition {}, retrying ({} attempts left). Error: {}",
@@ -641,6 +653,7 @@ public class Sender implements Runnable {
                     this.retries - batch.attempts() - 1,
                     error);
                 if (transactionManager == null) {
+                    // vortual: 重新进入队列排队，排在第一个保证消息顺序性。
                     reenqueueBatch(batch, now);
                 } else if (transactionManager.hasProducerIdAndEpoch(batch.producerId(), batch.producerEpoch())) {
                     // If idempotence is enabled only retry the request if the current producer id is the same as
@@ -685,6 +698,7 @@ public class Sender implements Runnable {
                 metadata.requestUpdate();
             }
         } else {
+            // vortual: 没有异常
             completeBatch(batch, response);
         }
 
@@ -705,6 +719,7 @@ public class Sender implements Runnable {
         }
 
         if (batch.done(response.baseOffset, response.logAppendTime, null)) {
+            // vortual: 释放内存回内存池
             maybeRemoveAndDeallocateBatch(batch);
         }
     }
@@ -796,6 +811,7 @@ public class Sender implements Runnable {
                 produceRecordsByPartition, transactionalId);
         RequestCompletionHandler callback = new RequestCompletionHandler() {
             public void onComplete(ClientResponse response) {
+                // vortual: 发送成功后的响应回调
                 handleProduceResponse(response, recordsByPartition, time.milliseconds());
             }
         };

@@ -93,6 +93,7 @@ public abstract class AbstractRequest implements AbstractRequestResponse {
     }
 
     public Send toSend(String destination, RequestHeader header) {
+        // vortual: serialize 这个方法会把实际数据封装进去
         return new NetworkSend(destination, serialize(header));
     }
 
@@ -100,6 +101,7 @@ public abstract class AbstractRequest implements AbstractRequestResponse {
      * Use with care, typically {@link #toSend(String, RequestHeader)} should be used instead.
      */
     public ByteBuffer serialize(RequestHeader header) {
+        // vortual: toStruct() 方法会调用具体的实现类。比如 ProduceRequest 的 toStruct()
         return RequestUtils.serialize(header.toStruct(), toStruct());
     }
 

@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 public class NetworkSend extends ByteBufferSend {
 
     public NetworkSend(String destination, ByteBuffer buffer) {
+        // vortual: 设置 sizebuffer 方便粘包拆包的处理。有这个大小就能知道这条消息本身的大小应该是多少，知道消息的边界
         super(destination, sizeBuffer(buffer.remaining()), buffer);
     }
 
