@@ -931,6 +931,7 @@ private[kafka] class Processor(val id: Int,
                   startTimeNanos = nowNanos, memoryPool, receive.payload, requestChannel.metrics)
                 // vortual: 往请求队列放请求对象
                 requestChannel.sendRequest(req)
+                // vortual: 移除 OP_READ 事件. 防止重复读取
                 selector.mute(connectionId)
                 handleChannelMuteEvent(connectionId, ChannelMuteEvent.REQUEST_RECEIVED)
               }

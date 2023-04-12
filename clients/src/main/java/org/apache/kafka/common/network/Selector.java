@@ -357,6 +357,7 @@ public class Selector implements Selectable, AutoCloseable {
      */
     @Override
     public void wakeup() {
+        // vortual: 调用这个会唤醒阻塞在 selector.select(1000) 方法的线程，如果没有正在阻塞的，那么下次调用 select 时也能立即返回结果
         this.nioSelector.wakeup();
     }
 
@@ -488,6 +489,7 @@ public class Selector implements Selectable, AutoCloseable {
             }
 
             // Poll from channels where the underlying socket has more data
+            // vortual: 核心代码
             pollSelectionKeys(readyKeys, false, endSelect);
             // Clear all selected keys so that they are included in the ready count for the next select
             readyKeys.clear();
